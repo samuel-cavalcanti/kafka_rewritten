@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 @dataclass
 class HeaderRequest:
+    msg_size: int
     api_key: int
     api_version: int
     correlation_id: int
@@ -32,6 +33,7 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
     correlation_id = data[8 : 8 + 4]
 
     return HeaderRequest(
+        int.from_bytes(msg_size),
         int.from_bytes(api_key),
         int.from_bytes(api_version),
         int.from_bytes(correlation_id),
@@ -39,17 +41,20 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
 
 
 def api_version_response(header: HeaderRequest) -> bytes:
-    mensage_size = 0
     error_code = 35
     if 0 <= header.api_version <= 4:
         return (
-            mensage_size.to_bytes(4)
+            header.msg_size.to_bytes(4)
             + header.api_key.to_bytes(2)
             + header.api_version.to_bytes(2)
             + header.correlation_id.to_bytes(4)
         )
     else:
-        return mensage_size.to_bytes(4) + header.correlation_id.to_bytes(4)  + error_code.to_bytes(2)
+        return (
+            header.msg_size.to_bytes(4)
+            + header.correlation_id.to_bytes(4)
+            + error_code.to_bytes(2)
+        )
 
 
 def main():
