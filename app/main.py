@@ -9,6 +9,14 @@ class HeaderRequest:
     correlation_id: int
 
 
+# https://kafka.apache.org/protocol.html#The_Messages_ApiVersions
+@dataclass
+class ApiVersion4:
+    error_code: int
+    api_keys: list[int]
+    throttle_time_ms: int
+
+
 def correlation_id_respnse(id: int, msg_size: int) -> bytes:
     # The correlation_id field is a 32-bit signed integer.
     # The message_size field is a 32-bit signed integer
@@ -30,26 +38,41 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
     )
 
 
+def api_version_response(header: HeaderRequest) -> bytes:
+    mensage_size = 0
+    error_code = 35
+    if 0 <= header.api_version <= 4:
+        return (
+            mensage_size.to_bytes(4)
+            + header.api_key.to_bytes(2)
+            + header.api_version.to_bytes(2)
+            + header.correlation_id.to_bytes(4)
+        )
+    else:
+        return correlation_id_respnse(
+            id=header.correlation_id, msg_size=mensage_size
+        ) + error_code.to_bytes(2)
+
+
 def main():
     # You can use print statements as follows for debugging,
     # they'll be visible when running tests.
     print("Logs from your program will appear here!")
 
-    # Uncomment this to pass the first stage
-    #
     server = socket.create_server(("localhost", 9092), reuse_port=True)
     client_socket, address = server.accept()  # wait for client
 
-    data = client_socket.recv(1028)
+    data = client_socket.recv(4)
+    mensage_size = int.from_bytes(data)
+    data = data + client_socket.recv(mensage_size - 4)
+
     print("input", data, len(data))
     header = parse_request_bytes(data)
+
+    print("header", header)
     mensage_size = 0
 
-    response_bytes = correlation_id_respnse(
-        id=header.correlation_id, msg_size=mensage_size
-    )
-
-    print("output", response_bytes, len(response_bytes))
+    response_bytes = api_version_response(header)
     client_socket.send(response_bytes)
 
 
