@@ -49,7 +49,7 @@ def api_version_response(header: HeaderRequest) -> bytes:
             + header.correlation_id.to_bytes(4)
         )
     else:
-        return mensage_size.to_bytes(4) + header.correlation_id.to_bytes(4) + b'\t' + error_code.to_bytes(2)
+        return mensage_size.to_bytes(4) + header.correlation_id.to_bytes(4)  + error_code.to_bytes(2)
 
 
 def main():
