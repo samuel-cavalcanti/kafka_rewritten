@@ -60,9 +60,9 @@ def main():
     server = socket.create_server(("localhost", 9092), reuse_port=True)
     client_socket, address = server.accept()  # wait for client
 
-    data = client_socket.recv(1024)
-    # mensage_size = int.from_bytes(data)
-    # data = data + client_socket.recv(mensage_size - 4)
+    data = client_socket.recv(4)
+    mensage_size = int.from_bytes(data)
+    data = data + client_socket.recv(mensage_size - 4)
 
     print("input", data, len(data))
     header = parse_request_bytes(data)
