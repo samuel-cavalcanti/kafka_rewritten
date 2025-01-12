@@ -75,6 +75,7 @@ def main():
     print("header", header)
 
     response_bytes = api_version_response(header)
+    print("output", response_bytes, len(response_bytes))
     client_socket.send(response_bytes)
 
 
