@@ -45,9 +45,9 @@ def api_version_response(header: HeaderRequest) -> bytes:
     if 0 <= header.api_version <= 4:
         return (
             header.msg_size.to_bytes(4)
+            + header.correlation_id.to_bytes(4)
             + header.api_key.to_bytes(2)
             + header.api_version.to_bytes(2)
-            + header.correlation_id.to_bytes(4)
         )
     else:
         return (
