@@ -60,12 +60,13 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
 
 def api_version_response(header: HeaderRequest) -> bytes:
     def api_keys(api_key: int) -> bytes:
-        print("api key:", api_key.to_bytes(INT16))
         return api_key.to_bytes(INT16) + (0).to_bytes(INT16) + (4).to_bytes(INT16)
 
     def header_bytes(header: HeaderRequest) -> bytes:
         return header.correlation_id.to_bytes(INT32)
         return header.msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32)
+
+    print("api keys", api_keys(header.api_key))
 
     match header.api_version:
         case 0:
