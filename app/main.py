@@ -1,3 +1,4 @@
+from enum import Enum, auto
 import socket  # noqa: F401
 from dataclasses import dataclass
 
@@ -10,12 +11,29 @@ class HeaderRequest:
     correlation_id: int
 
 
-# https://kafka.apache.org/protocol.html#The_Messages_ApiVersions
 @dataclass
-class ApiVersion4:
+class ApiVersion0:
+    error_code: int
+    api_keys: list[int]
+
+
+@dataclass
+class ApiVersion1_4:
     error_code: int
     api_keys: list[int]
     throttle_time_ms: int
+
+
+INT16 = 2
+INT32 = 4
+
+
+class ErrorCode(Enum):
+    UNKNOWN_SERVER_ERROR = -1
+    NONE = 0
+    OFFSET_OUT_OF_RANGE = 1
+    CORRUPT_MESSAGE = 2
+    UNSUPPORTED_VERSION = 35
 
 
 def correlation_id_respnse(id: int, msg_size: int) -> bytes:
@@ -41,20 +59,33 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
 
 
 def api_version_response(header: HeaderRequest) -> bytes:
-    error_code = 35
-    if 0 <= header.api_version <= 4:
-        return (
-            header.msg_size.to_bytes(4)
-            + header.correlation_id.to_bytes(4)
-            + header.api_key.to_bytes(2)
-            + header.api_version.to_bytes(2)
-        )
-    else:
-        return (
-            header.msg_size.to_bytes(4)
-            + header.correlation_id.to_bytes(4)
-            + error_code.to_bytes(2)
-        )
+    def api_keys(api_key: int) -> bytes:
+        return api_key.to_bytes(INT16) + (0).to_bytes(INT16) + (4).to_bytes(INT16)
+
+    def header_bytes(header: HeaderRequest) -> bytes:
+        return header.msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32)
+
+    match header.api_version:
+        case 0:
+            return (
+                header_bytes(header)
+                + ErrorCode.NONE.value.to_bytes(INT16)
+                + api_keys(header.api_key)
+            )
+        case 1 | 2 | 3 | 4:
+            throttle_time_ms = 0
+            return (
+                header_bytes(header)
+                + ErrorCode.NONE.value.to_bytes(INT16)
+                + api_keys(header.api_key)
+                + throttle_time_ms.to_bytes(INT32)
+            )
+        case _:
+            return (
+                header.msg_size.to_bytes(INT32)
+                + header.correlation_id.to_bytes(INT32)
+                + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
+            )
 
 
 def main():
@@ -63,11 +94,9 @@ def main():
     print("Logs from your program will appear here!")
 
     server = socket.create_server(("localhost", 9092), reuse_port=True)
-    client_socket, address = server.accept()  # wait for client
+    client_socket, _ = server.accept()  # wait for client
 
     data = client_socket.recv(1024)
-    # mensage_size = int.from_bytes(data)
-    # data = data + client_socket.recv(mensage_size - 4)
 
     print("input", data, len(data))
     header = parse_request_bytes(data)
