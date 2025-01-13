@@ -105,7 +105,7 @@ def main():
     print("header", header)
 
     response_bytes = api_version_response(header)
-    msg_size = len(response_bytes)
+    msg_size = len(response_bytes) + 4
     response_bytes = msg_size.to_bytes(INT32) + response_bytes
     print("output", response_bytes, len(response_bytes))
     client_socket.send(response_bytes)
