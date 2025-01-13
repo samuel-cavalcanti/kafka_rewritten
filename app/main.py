@@ -80,7 +80,7 @@ def api_version_response(header: HeaderRequest) -> bytes:
                 + ErrorCode.NONE.value.to_bytes(INT16)
                 + api_keys(header.api_key)
                 + throttle_time_ms.to_bytes(INT32)
-                + (3).to_bytes(INT32)
+                + (0).to_bytes(INT32)
             )
         case _:
             return (
