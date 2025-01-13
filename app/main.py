@@ -63,6 +63,7 @@ def api_version_response(header: HeaderRequest) -> bytes:
         return api_key.to_bytes(INT16) + (0).to_bytes(INT16) + (4).to_bytes(INT16)
 
     def header_bytes(header: HeaderRequest) -> bytes:
+        return header.correlation_id.to_bytes(INT32)
         return header.msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32)
 
     match header.api_version:
@@ -104,6 +105,8 @@ def main():
     print("header", header)
 
     response_bytes = api_version_response(header)
+    msg_size = len(response_bytes)
+    response_bytes = msg_size.to_bytes(INT32) + response_bytes
     print("output", response_bytes, len(response_bytes))
     client_socket.send(response_bytes)
 
