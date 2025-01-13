@@ -62,7 +62,6 @@ def api_version_response(header: HeaderRequest) -> bytes:
     def api_keys(api_key: int) -> bytes:
         min_version = 0
         max_version = 4
-        return bytes(bytearray([api_key, min_version, max_version]))
         return (
             api_key.to_bytes(INT16)
             + min_version.to_bytes(INT16)
