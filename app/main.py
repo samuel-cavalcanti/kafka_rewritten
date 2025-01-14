@@ -117,6 +117,7 @@ def api_version_response(header: HeaderRequest) -> bytes:
                 return (
                     header.correlation_id.to_bytes(INT32)
                     + ErrorCode.NONE.value.to_bytes(INT16)
+                    + (2).to_bytes(INT16)
                     + api_keys(header.api_key)
                     + (0).to_bytes(INT32)
                     + throttle_time_ms.to_bytes(INT32)
