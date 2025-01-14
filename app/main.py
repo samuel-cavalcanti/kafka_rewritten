@@ -153,14 +153,19 @@ def api_version_response(header: HeaderRequest) -> bytes:
 def accept_client(client: socket.socket):
     while True:
         data = client.recv(1024)
-        print("input", data, len(data))
+        if len(data) == 0:
+            return
+
         header = parse_request_header_bytes(data)
 
-        print("header", header)
-
         response_bytes = api_version_response(header)
-        print("output", response_bytes, len(response_bytes))
-        client.send(response_bytes)
+
+        client.sendall(response_bytes)
+
+        log = f"input {data} {len(data)}\n"
+        log += f"header {header}\n"
+        log += f"output {response_bytes} {len(response_bytes)}"
+        print(log)
 
 
 def main():
