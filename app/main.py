@@ -54,7 +54,7 @@ def correlation_id_respnse(id: int, msg_size: int) -> bytes:
     return response_bytes
 
 
-def parse_request_bytes(data: bytes) -> HeaderRequest:
+def parse_request_header_bytes(data: bytes) -> HeaderRequest:
     msg_size = data[:4]
     api_key = data[4:6]
     api_version = data[6:8]
@@ -69,21 +69,24 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
 
 
 def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
+    COMPACT_STRING_LEN = INT16
     begin = 0
-    end = begin + 4
+    end = begin + COMPACT_STRING_LEN
     size_str = int.from_bytes(data[begin:end])
     print("size str", size_str)
     begin = end
-    end = size_str
+    end = size_str + begin
     name = data[begin:end].decode()
+    print("name", name)
 
     begin = end
-    end = begin + 4
+    end = begin + COMPACT_STRING_LEN
     size_str = int.from_bytes(data[begin:end])
     print("size str", size_str)
     begin = end
-    end = size_str
-    version = data[begin:end].decode()
+    end = size_str + begin
+    version = data[begin : end - 1].decode()
+    print(data[end - 1 :].decode())
 
     return ApiVersionsRequest(
         client_software_name=name,
@@ -101,34 +104,32 @@ def api_version_response(header: HeaderRequest) -> bytes:
             + max_version.to_bytes(INT16)
         )
 
-    def header_bytes(header: HeaderRequest) -> bytes:
-        return header.correlation_id.to_bytes(INT32)
-        return header.msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32)
+    def response_bytes(header: HeaderRequest):
+        match header.api_version:
+            case 0:
+                return (
+                    header.correlation_id.to_bytes(INT32)
+                    + ErrorCode.NONE.value.to_bytes(INT16)
+                    + api_keys(header.api_key)
+                )
+            case 1 | 2 | 3 | 4:
+                throttle_time_ms = 0
+                return (
+                    header.correlation_id.to_bytes(INT32)
+                    + ErrorCode.NONE.value.to_bytes(INT16)
+                    + api_keys(header.api_key)
+                    + (0).to_bytes(INT32)
+                    + throttle_time_ms.to_bytes(INT32)
+                    + (0).to_bytes(INT32)
+                )
+            case _:
+                return header.correlation_id.to_bytes(
+                    INT32
+                ) + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
 
-    print("api keys", api_keys(header.api_key))
-
-    match header.api_version:
-        case 0:
-            return (
-                header_bytes(header)
-                + ErrorCode.NONE.value.to_bytes(INT16)
-                + api_keys(header.api_key)
-            )
-        case 1 | 2 | 3 | 4:
-            throttle_time_ms = 0
-            return (
-                header_bytes(header)
-                + ErrorCode.NONE.value.to_bytes(INT16)
-                + api_keys(header.api_key)
-                + throttle_time_ms.to_bytes(INT32)
-                + (0).to_bytes(INT32)
-            )
-        case _:
-            return (
-                header.msg_size.to_bytes(INT32)
-                + header.correlation_id.to_bytes(INT32)
-                + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
-            )
+    res_bytes = response_bytes(header)
+    msg_size = len(res_bytes)
+    return msg_size.to_bytes(INT32) + res_bytes
 
 
 def main():
@@ -142,7 +143,7 @@ def main():
     data = client_socket.recv(1024)
 
     print("input", data, len(data))
-    header = parse_request_bytes(data)
+    header = parse_request_header_bytes(data)
 
     if header.api_key == ApiKeys.ApiVersions.value:
         body = parse_api_version_request(data[12:])
@@ -151,8 +152,6 @@ def main():
     print("header", header)
 
     response_bytes = api_version_response(header)
-    msg_size = len(response_bytes)
-    response_bytes = msg_size.to_bytes(INT32) + response_bytes
     print("output", response_bytes, len(response_bytes))
     client_socket.send(response_bytes)
 
