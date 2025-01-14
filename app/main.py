@@ -107,30 +107,23 @@ def api_version_response(header: HeaderRequest) -> bytes:
     def response_bytes(header: HeaderRequest):
         match header.api_version:
             case 0:
-                return (
-                    header.correlation_id.to_bytes(INT32)
-                    + ErrorCode.NONE.value.to_bytes(INT16)
-                    + api_keys(header.api_key)
-                )
+                return ErrorCode.NONE.value.to_bytes(INT16) + api_keys(header.api_key)
             case 1 | 2 | 3 | 4:
                 throttle_time_ms = 0
                 return (
-                    header.correlation_id.to_bytes(INT32)
-                    + ErrorCode.NONE.value.to_bytes(INT16)
-                    + (2).to_bytes(INT16)
+                    ErrorCode.NONE.value.to_bytes(INT16)
+                    # + (2).to_bytes(INT16)
                     + api_keys(header.api_key)
                     + (0).to_bytes(INT32)
                     + throttle_time_ms.to_bytes(INT32)
                     + (0).to_bytes(INT32)
                 )
             case _:
-                return header.correlation_id.to_bytes(
-                    INT32
-                ) + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
+                return ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
 
     res_bytes = response_bytes(header)
     msg_size = len(res_bytes)
-    return msg_size.to_bytes(INT32) + res_bytes
+    return msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32) + res_bytes
 
 
 def main():
