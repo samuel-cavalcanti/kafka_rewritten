@@ -1,6 +1,7 @@
 from enum import Enum
 import socket  # noqa: F401
 from dataclasses import dataclass
+import threading
 
 
 @dataclass
@@ -149,26 +150,29 @@ def api_version_response(header: HeaderRequest) -> bytes:
     return msg_size.to_bytes(INT32) + res_bytes
 
 
+def accept_client(client: socket.socket):
+    while True:
+        data = client.recv(1024)
+        print("input", data, len(data))
+        header = parse_request_header_bytes(data)
+
+        print("header", header)
+
+        response_bytes = api_version_response(header)
+        print("output", response_bytes, len(response_bytes))
+        client.send(response_bytes)
+
+
 def main():
     # You can use print statements as follows for debugging,
     # they'll be visible when running tests.
     print("Logs from your program will appear here!")
 
     server = socket.create_server(("localhost", 9092), reuse_port=True)
-    client_socket, _ = server.accept()  # wait for client
 
     while True:
-        data = client_socket.recv(1024)
-
-        print("input", data, len(data))
-        header = parse_request_header_bytes(data)
-
-
-        print("header", header)
-
-        response_bytes = api_version_response(header)
-        print("output", response_bytes, len(response_bytes))
-        client_socket.send(response_bytes)
+        client_socket, _ = server.accept()  # wait for client
+        thread = threading.Thread(target=accept_client, args=(client_socket,))
 
 
 if __name__ == "__main__":
