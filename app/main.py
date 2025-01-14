@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 import socket  # noqa: F401
 from dataclasses import dataclass
 
@@ -24,6 +24,12 @@ class ApiVersion1_4:
     throttle_time_ms: int
 
 
+@dataclass
+class ApiVersionsRequest:
+    client_software_name: str
+    client_software_version: str
+
+
 INT16 = 2
 INT32 = 4
 
@@ -34,6 +40,10 @@ class ErrorCode(Enum):
     OFFSET_OUT_OF_RANGE = 1
     CORRUPT_MESSAGE = 2
     UNSUPPORTED_VERSION = 35
+
+
+class ApiKeys(Enum):
+    ApiVersions = 18
 
 
 def correlation_id_respnse(id: int, msg_size: int) -> bytes:
@@ -55,6 +65,27 @@ def parse_request_bytes(data: bytes) -> HeaderRequest:
         int.from_bytes(api_key),
         int.from_bytes(api_version),
         int.from_bytes(correlation_id),
+    )
+
+
+def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
+    begin = 0
+    end = begin + 4
+    size_str = int.from_bytes(data[begin:end])
+    begin = end
+    end = size_str
+    name = data[begin:end].decode()
+
+    begin = end
+    end = begin + 4
+    size_str = int.from_bytes(data[begin:end])
+    begin = end
+    end = size_str
+    version = data[begin:end].decode()
+
+    return ApiVersionsRequest(
+        client_software_name=name,
+        client_software_version=version,
     )
 
 
@@ -110,6 +141,10 @@ def main():
 
     print("input", data, len(data))
     header = parse_request_bytes(data)
+
+    if header.api_key == ApiKeys.ApiVersions.value:
+        body = parse_api_version_request(data[12:])
+        print("body", body)
 
     print("header", header)
 
