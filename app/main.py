@@ -157,20 +157,18 @@ def main():
     server = socket.create_server(("localhost", 9092), reuse_port=True)
     client_socket, _ = server.accept()  # wait for client
 
-    data = client_socket.recv(1024)
+    while True:
+        data = client_socket.recv(1024)
 
-    print("input", data, len(data))
-    header = parse_request_header_bytes(data)
+        print("input", data, len(data))
+        header = parse_request_header_bytes(data)
 
-    # if header.api_key == ApiKeys.ApiVersions.value:
-    #     body = parse_api_version_request(data[12:])
-    #     print("body", body)
 
-    print("header", header)
+        print("header", header)
 
-    response_bytes = api_version_response(header)
-    print("output", response_bytes, len(response_bytes))
-    client_socket.send(response_bytes)
+        response_bytes = api_version_response(header)
+        print("output", response_bytes, len(response_bytes))
+        client_socket.send(response_bytes)
 
 
 if __name__ == "__main__":
