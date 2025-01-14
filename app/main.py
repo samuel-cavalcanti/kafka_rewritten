@@ -173,6 +173,7 @@ def main():
     while True:
         client_socket, _ = server.accept()  # wait for client
         thread = threading.Thread(target=accept_client, args=(client_socket,))
+        thread.start()
 
 
 if __name__ == "__main__":
