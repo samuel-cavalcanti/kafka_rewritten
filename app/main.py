@@ -145,9 +145,9 @@ def main():
     print("input", data, len(data))
     header = parse_request_header_bytes(data)
 
-    if header.api_key == ApiKeys.ApiVersions.value:
-        body = parse_api_version_request(data[12:])
-        print("body", body)
+    # if header.api_key == ApiKeys.ApiVersions.value:
+    #     body = parse_api_version_request(data[12:])
+    #     print("body", body)
 
     print("header", header)
 
