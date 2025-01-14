@@ -72,6 +72,7 @@ def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
     begin = 0
     end = begin + 4
     size_str = int.from_bytes(data[begin:end])
+    print("size str", size_str)
     begin = end
     end = size_str
     name = data[begin:end].decode()
@@ -79,6 +80,7 @@ def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
     begin = end
     end = begin + 4
     size_str = int.from_bytes(data[begin:end])
+    print("size str", size_str)
     begin = end
     end = size_str
     version = data[begin:end].decode()
