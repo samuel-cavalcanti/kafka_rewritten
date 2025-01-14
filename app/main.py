@@ -95,14 +95,6 @@ def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
 
 
 def api_version_response(header: HeaderRequest) -> bytes:
-    def api_keys(api_key: int) -> bytes:
-        min_version = 0
-        max_version = 4
-        return (
-            api_key.to_bytes(INT16)
-            + min_version.to_bytes(INT16)
-            + max_version.to_bytes(INT16)
-        )
 
     def response_bytes(header: HeaderRequest):
         match header.api_version:
@@ -112,7 +104,7 @@ def api_version_response(header: HeaderRequest) -> bytes:
                 throttle_time_ms = 0
                 return (
                     ErrorCode.NONE.value.to_bytes(INT16)
-                    # + (2).to_bytes(INT16)
+                    + (2).to_bytes(INT16)
                     + api_keys(header.api_key)
                     + (0).to_bytes(INT32)
                     + throttle_time_ms.to_bytes(INT32)
@@ -121,6 +113,14 @@ def api_version_response(header: HeaderRequest) -> bytes:
             case _:
                 return ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
 
+    def api_keys(api_key: int) -> bytes:
+        min_version = 0
+        max_version = 4
+        return (
+            api_key.to_bytes(INT16)
+            + min_version.to_bytes(INT16)
+            + max_version.to_bytes(INT16)
+        )
     res_bytes = response_bytes(header)
     msg_size = len(res_bytes)
     return msg_size.to_bytes(INT32) + header.correlation_id.to_bytes(INT32) + res_bytes
