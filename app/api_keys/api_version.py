@@ -46,7 +46,7 @@ def api_version_response(header: HeaderRequest):
             supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
             num_api_keys = len(supported_api_keys) + 1
             keys_bytes = supported_api_keys[0] + tag_buffer.to_bytes(INT8)
-            for api_key_bytes in supported_api_keys:
+            for api_key_bytes in supported_api_keys[1:]:
                 keys_bytes = keys_bytes + api_key_bytes + tag_buffer.to_bytes(INT8)
 
             return (
