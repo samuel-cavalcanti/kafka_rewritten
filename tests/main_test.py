@@ -1,5 +1,6 @@
 import unittest
 from app import main
+from app.api_keys import ApiKeys
 
 
 class MainTestCase(unittest.TestCase):
@@ -39,7 +40,7 @@ class MainTestCase(unittest.TestCase):
         input = b"\x00\x00\x00#\x00\x12\x00\x04\x7fa\xe6\xea\x00\tkafka-cli\x00\nkafka-cli\x040.1\x00"
 
         header = main.parse_request_header_bytes(input)
-        self.assertEqual(header.api_key, main.ApiKeys.ApiVersions.value)
+        self.assertEqual(header.api_key, ApiKeys.ApiVersions.value)
         body_bytes = input[8 + 4 :]
         print(body_bytes[:4])
 
@@ -64,5 +65,5 @@ class MainTestCase(unittest.TestCase):
         ]
 
         for header, expected_res in zip(headers, responses):
-            res = main.api_version_response(header)
+            res = main.kafka_response(header)
             self.assertEqual(res, expected_res)

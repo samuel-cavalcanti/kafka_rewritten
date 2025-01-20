@@ -1,51 +1,16 @@
-from enum import Enum
 import socket  # noqa: F401
 from dataclasses import dataclass
 import threading
 
-
-@dataclass
-class HeaderRequest:
-    msg_size: int
-    api_key: int
-    api_version: int
-    correlation_id: int
-
-
-@dataclass
-class ApiVersion0:
-    error_code: int
-    api_keys: list[int]
-
-
-@dataclass
-class ApiVersion1_4:
-    error_code: int
-    api_keys: list[int]
-    throttle_time_ms: int
+from .header_request import HeaderRequest
+from . import api_keys
+from .utils import INT16, INT32
 
 
 @dataclass
 class ApiVersionsRequest:
     client_software_name: str
     client_software_version: str
-
-
-INT8 = 1
-INT16 = 2
-INT32 = 4
-
-
-class ErrorCode(Enum):
-    UNKNOWN_SERVER_ERROR = -1
-    NONE = 0
-    OFFSET_OUT_OF_RANGE = 1
-    CORRUPT_MESSAGE = 2
-    UNSUPPORTED_VERSION = 35
-
-
-class ApiKeys(Enum):
-    ApiVersions = 18
 
 
 def correlation_id_respnse(id: int, msg_size: int) -> bytes:
@@ -70,25 +35,21 @@ def parse_request_header_bytes(data: bytes) -> HeaderRequest:
     )
 
 
-def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
-    COMPACT_STRING_LEN = INT16
-    begin = 0
-    end = begin + COMPACT_STRING_LEN
-    size_str = int.from_bytes(data[begin:end])
-    print("size str", size_str)
-    begin = end
-    end = size_str + begin
-    name = data[begin:end].decode()
-    print("name", name)
+COMPACT_STRING_LEN = INT16
 
-    begin = end
-    end = begin + COMPACT_STRING_LEN
-    size_str = int.from_bytes(data[begin:end])
-    print("size str", size_str)
-    begin = end
-    end = size_str + begin
-    version = data[begin : end - 1].decode()
-    print(data[end - 1 :].decode())
+
+def parse_compact_string(data: bytes) -> str:
+    size_str = int.from_bytes(data[0:COMPACT_STRING_LEN])
+    string_bytes = data[COMPACT_STRING_LEN : COMPACT_STRING_LEN + size_str]
+    return string_bytes.decode()
+
+
+def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
+    name = parse_compact_string(data)
+    print("name", name)
+    begin = COMPACT_STRING_LEN + len(name)
+    version = parse_compact_string(data[begin:])
+    print("version", version)
 
     return ApiVersionsRequest(
         client_software_name=name,
@@ -96,58 +57,12 @@ def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
     )
 
 
-def api_version_response(header: HeaderRequest) -> bytes:
-    def response_bytes(header: HeaderRequest):
-        match header.api_version:
-            case 0:
-                num_api_keys = 2
-                return (
-                    header.correlation_id.to_bytes(INT32)
-                    + ErrorCode.NONE.value.to_bytes(INT16)
-                    + num_api_keys.to_bytes(INT8)
-                    + api_keys(header.api_key)
-                )
-
-            case 2:
-                throttle_time_ms = 0
-                num_api_keys = 2
-                return (
-                    header.correlation_id.to_bytes(INT32)
-                    + ErrorCode.NONE.value.to_bytes(INT16)
-                    + num_api_keys.to_bytes(INT8)
-                    + api_keys(header.api_key)
-                    + throttle_time_ms.to_bytes(INT32)
-                )
-            case 3 | 4:
-                throttle_time_ms = 0
-                tag_buffer = 0
-                num_api_keys = 2
-                return (
-                    header.correlation_id.to_bytes(INT32)
-                    + ErrorCode.NONE.value.to_bytes(INT16)
-                    + num_api_keys.to_bytes(INT8)
-                    + api_keys(header.api_key)
-                    + tag_buffer.to_bytes(INT8)
-                    + throttle_time_ms.to_bytes(INT32)
-                    + tag_buffer.to_bytes(INT8)
-                )
-            case _:
-                return header.correlation_id.to_bytes(
-                    INT32
-                ) + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
-
-    def api_keys(api_key: int) -> bytes:
-        min_version = 0
-        max_version = 4
-        return (
-            api_key.to_bytes(INT16)
-            + min_version.to_bytes(INT16)
-            + max_version.to_bytes(INT16)
-        )
-
-    res_bytes = response_bytes(header)
-    msg_size = len(res_bytes)
-    return msg_size.to_bytes(INT32) + res_bytes
+def kafka_response(header: HeaderRequest) -> bytes:
+    if header.api_key == api_keys.ApiKeys.ApiVersions.value.code:
+        res_bytes = api_keys.api_version_response(header)
+        msg_size = len(res_bytes)
+        return msg_size.to_bytes(INT32) + res_bytes
+    raise ValueError(f"API key not supported: {header.api_key}")
 
 
 def accept_client(client: socket.socket):
@@ -158,7 +73,7 @@ def accept_client(client: socket.socket):
 
         header = parse_request_header_bytes(data)
 
-        response_bytes = api_version_response(header)
+        response_bytes = kafka_response(header)
 
         client.sendall(response_bytes)
 
