@@ -53,7 +53,7 @@ def api_version_response(header: HeaderRequest):
                 + ErrorCode.NONE.value.to_bytes(INT16)
                 + num_api_keys.to_bytes(INT8)
                 + supported_api_keys
-                + tag_buffer.to_bytes(INT8)
+                # + tag_buffer.to_bytes(INT8)
                 + throttle_time_ms.to_bytes(INT32)
                 + tag_buffer.to_bytes(INT8)
             )
