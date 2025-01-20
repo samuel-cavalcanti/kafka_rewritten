@@ -16,8 +16,8 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
 def api_version_response(header: HeaderRequest):
     assert header.api_key == ApiKeys.ApiVersions.value.code
     supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
-    num_api_keys = len(supported_api_keys)
-    supported_api_keys = b''.join(supported_api_keys)
+    num_api_keys = len(supported_api_keys) + 1
+    supported_api_keys = b"".join(supported_api_keys)
 
     match header.api_version:
         case 0:
