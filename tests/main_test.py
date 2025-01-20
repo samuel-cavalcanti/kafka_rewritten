@@ -1,6 +1,7 @@
 import unittest
 from app import main
 from app.api_keys import ApiKeys
+from app.header_request import HeaderRequest
 
 
 class MainTestCase(unittest.TestCase):
@@ -23,13 +24,9 @@ class MainTestCase(unittest.TestCase):
             b"\x00\x00\x00#\x00\x12\x00\x04\x06z\x8cf\x00\tkafka-cli\x00\nkafka-cli\x040.1\x00",
         ]
         headers = [
-            main.HeaderRequest(
-                35, api_key=18, api_version=4, correlation_id=1870644833
-            ),
-            main.HeaderRequest(
-                35, api_key=18, api_version=26442, correlation_id=1333056139
-            ),
-            main.HeaderRequest(35, api_key=18, api_version=4, correlation_id=108694630),
+            HeaderRequest(35, api_key=18, api_version=4, correlation_id=1870644833),
+            HeaderRequest(35, api_key=18, api_version=26442, correlation_id=1333056139),
+            HeaderRequest(35, api_key=18, api_version=4, correlation_id=108694630),
         ]
 
         for msg, header in zip(msgs, headers):
@@ -40,30 +37,42 @@ class MainTestCase(unittest.TestCase):
         input = b"\x00\x00\x00#\x00\x12\x00\x04\x7fa\xe6\xea\x00\tkafka-cli\x00\nkafka-cli\x040.1\x00"
 
         header = main.parse_request_header_bytes(input)
-        self.assertEqual(header.api_key, ApiKeys.ApiVersions.value)
-        body_bytes = input[8 + 4 :]
-        print(body_bytes[:4])
+        self.assertEqual(header.api_key, ApiKeys.ApiVersions.value.code)
+        # body_bytes = input[8 + 4 :]
+        # print(body_bytes[:4])
 
-        body = main.parse_api_version_request(body_bytes)
-        print(body)
-
-        self.assertEqual(True, False)
+        # body = main.parse_api_version_request(body_bytes)
+        # print(body)
 
     def test_api_version_response(self):
         headers = [
-            main.HeaderRequest(
-                35,
+            HeaderRequest(
+                msg_size=35,
                 api_key=18,
-                api_version=26442,
-                correlation_id=1333056139,
+                api_version=60035,
+                correlation_id=122178114,
             ),
-            main.HeaderRequest(35, api_key=18, api_version=4, correlation_id=869853728),
+            HeaderRequest(
+                msg_size=35,
+                api_key=18,
+                api_version=4,
+                correlation_id=1970255091,
+            ),
+            HeaderRequest(
+                msg_size=35,
+                api_key=18,
+                api_version=4,
+                correlation_id=809767070,
+            ),
         ]
         responses = [
-            b"\x00\x00\x00\x06Ot\xd2\x8b\x00#",
-            b"\x00\x00\x00\x143\xd8\xea \x00\x00\x00\x12\x00\x00\x00\x04\x00\x00\x00\x00\x00\x00\x00\x00",
+            b"\x00\x00\x00\x06\x07HJB\x00#",
+            b"\x00\x00\x00\x1auo\xb4\xf3\x00\x00\x03\x00\x12\x00\x00\x00\x04\x00\x00K\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+            b"\x00\x00\x00\x1a0D\x10\x9e\x00\x00\x03\x00\x12\x00\x00\x00\x04\x00\x00K\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
         ]
 
         for header, expected_res in zip(headers, responses):
             res = main.kafka_response(header)
+            print(header)
+            print(res, expected_res, len(res), len(expected_res))
             self.assertEqual(res, expected_res)

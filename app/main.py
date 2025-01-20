@@ -46,10 +46,8 @@ def parse_compact_string(data: bytes) -> str:
 
 def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
     name = parse_compact_string(data)
-    print("name", name)
     begin = COMPACT_STRING_LEN + len(name)
     version = parse_compact_string(data[begin:])
-    print("version", version)
 
     return ApiVersionsRequest(
         client_software_name=name,
