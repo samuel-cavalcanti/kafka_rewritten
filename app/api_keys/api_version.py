@@ -13,7 +13,6 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
     )
 
 
-
 def api_version_response(header: HeaderRequest):
     assert header.api_key == ApiKeys.ApiVersions.value.code
 
@@ -46,13 +45,15 @@ def api_version_response(header: HeaderRequest):
             tag_buffer = 0
             supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
             num_api_keys = len(supported_api_keys) + 1
-            supported_api_keys = b"00".join(supported_api_keys)
+            keys_bytes = supported_api_keys[0] + tag_buffer.to_bytes(INT8)
+            for api_key_bytes in supported_api_keys:
+                keys_bytes = keys_bytes + api_key_bytes + tag_buffer.to_bytes(INT8)
 
             return (
                 header.correlation_id.to_bytes(INT32)
                 + ErrorCode.NONE.value.to_bytes(INT16)
                 + num_api_keys.to_bytes(INT8)
-                + supported_api_keys
+                + keys_bytes
                 # + tag_buffer.to_bytes(INT8)
                 + throttle_time_ms.to_bytes(INT32)
                 + tag_buffer.to_bytes(INT8)
