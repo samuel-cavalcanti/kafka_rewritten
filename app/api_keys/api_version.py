@@ -13,14 +13,15 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
     )
 
 
+
 def api_version_response(header: HeaderRequest):
     assert header.api_key == ApiKeys.ApiVersions.value.code
-    supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
-    num_api_keys = len(supported_api_keys) + 1
-    supported_api_keys = b"".join(supported_api_keys)
 
     match header.api_version:
         case 0:
+            supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
+            num_api_keys = len(supported_api_keys) + 1
+            supported_api_keys = b"".join(supported_api_keys)
             return (
                 header.correlation_id.to_bytes(INT32)
                 + ErrorCode.NONE.value.to_bytes(INT16)
@@ -29,6 +30,9 @@ def api_version_response(header: HeaderRequest):
             )
 
         case 2:
+            supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
+            num_api_keys = len(supported_api_keys) + 1
+            supported_api_keys = b"".join(supported_api_keys)
             throttle_time_ms = 0
             return (
                 header.correlation_id.to_bytes(INT32)
@@ -40,6 +44,10 @@ def api_version_response(header: HeaderRequest):
         case 3 | 4:
             throttle_time_ms = 0
             tag_buffer = 0
+            supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
+            num_api_keys = len(supported_api_keys) + 1
+            supported_api_keys = b"00".join(supported_api_keys)
+
             return (
                 header.correlation_id.to_bytes(INT32)
                 + ErrorCode.NONE.value.to_bytes(INT16)
