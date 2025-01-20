@@ -2,7 +2,7 @@ import socket  # noqa: F401
 from dataclasses import dataclass
 import threading
 
-from .header_request import HeaderRequest
+from app.header_request import HeaderRequest
 from . import api_keys
 from .utils import INT16, INT32
 
