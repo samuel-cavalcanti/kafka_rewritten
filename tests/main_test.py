@@ -73,7 +73,7 @@ class MainTestCase(unittest.TestCase):
             res = main.kafka_response(header)
             self.assertEqual(res, expected_res)
 
-    def test_dasdas_response(self):
+    def test_DescribeTopicPartitions_response(self):
         responses = [
             b"\x00\x00\x00\x29\x00\x00\x00\x07\x00\x00\x00\x00\x00\x02\x00\x03\x04\x66\x6f\x6f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x0d\xf8\x00\xff\x00",
         ]
