@@ -2,6 +2,7 @@ import socket  # noqa: F401
 from dataclasses import dataclass
 import threading
 
+from app.api_keys.api_key import ErrorCode
 from app.header_request import HeaderRequest
 from . import api_keys
 from .utils import INT16, INT32
@@ -56,11 +57,21 @@ def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
 
 
 def kafka_response(header: HeaderRequest) -> bytes:
-    if header.api_key == api_keys.ApiKeys.ApiVersions.value.code:
-        res_bytes = api_keys.api_version_response(header)
-        msg_size = len(res_bytes)
-        return msg_size.to_bytes(INT32) + res_bytes
-    raise ValueError(f"API key not supported: {header.api_key}")
+    def dasdas(header: HeaderRequest) -> bytes:
+        match header.api_key:
+            case api_keys.ApiKeys.ApiVersions.value.code:
+                return api_keys.api_version_response(header)
+            # case api_keys.ApiKeys.DescribeTopicPartitions.value.code:
+            #
+            #     return api_keys.describe_topic_partitions_response()
+            case _:
+                return header.api_key.to_bytes(
+                    INT32
+                ) + ErrorCode.UNKNOWN.value.to_bytes(INT16)
+
+    res_bytes = dasdas(header)
+    msg_size = len(res_bytes)
+    return msg_size.to_bytes(INT32) + res_bytes
 
 
 def accept_client(client: socket.socket):
@@ -70,18 +81,18 @@ def accept_client(client: socket.socket):
             break
         try:
             header = parse_request_header_bytes(data)
-
             response_bytes = kafka_response(header)
 
-            client.sendall(response_bytes)
-
-            log = f"input {data} {len(data)}\n"
-            log += f"header {header}\n"
-            log += f"output {response_bytes} {len(response_bytes)}"
-            print(log)
         except Exception as e:
             print(e)
             break
+
+        client.sendall(response_bytes)
+
+        log = f"input {data} {len(data)}\n"
+        log += f"header {header}\n"
+        log += f"output {response_bytes} {len(response_bytes)}"
+        print(log)
 
     print("closing socket")
     client.close()
