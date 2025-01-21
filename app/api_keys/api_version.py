@@ -14,7 +14,7 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
 
 
 def sum_bytes(data: list[bytes]) -> bytes:
-    acc = data[1]
+    acc = data[0]
     for b in data[1:]:
         acc = acc + b
 
@@ -36,8 +36,7 @@ def api_version_response(header: HeaderRequest):
         ]
 
     num_api_keys = len(supported_api_keys) + 1
-    supported_api_keys = sum_bytes(supported_api_keys)
-    api_keys = num_api_keys.to_bytes(INT8) + supported_api_keys
+    api_keys = num_api_keys.to_bytes(INT8) + sum_bytes(supported_api_keys)
 
     match header.api_version:
         case 0:

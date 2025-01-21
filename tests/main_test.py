@@ -38,11 +38,9 @@ class MainTestCase(unittest.TestCase):
 
         header = main.parse_request_header_bytes(input)
         self.assertEqual(header.api_key, ApiKeys.ApiVersions.value.code)
-        # body_bytes = input[8 + 4 :]
-        # print(body_bytes[:4])
-
-        # body = main.parse_api_version_request(body_bytes)
-        # print(body)
+        # main.ApiVersionsRequest(
+        #     client_software_name="kafka-cli", client_software_version="kafka-cli40.0.1"
+        # )
 
     def test_api_version_response(self):
         headers = [
@@ -73,6 +71,4 @@ class MainTestCase(unittest.TestCase):
 
         for header, expected_res in zip(headers, responses):
             res = main.kafka_response(header)
-            print(header)
-            print(res, expected_res, len(res), len(expected_res))
             self.assertEqual(res, expected_res)

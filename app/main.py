@@ -67,18 +67,24 @@ def accept_client(client: socket.socket):
     while True:
         data = client.recv(1024)
         if len(data) == 0:
-            return
+            break
+        try:
+            header = parse_request_header_bytes(data)
 
-        header = parse_request_header_bytes(data)
+            response_bytes = kafka_response(header)
 
-        response_bytes = kafka_response(header)
+            client.sendall(response_bytes)
 
-        client.sendall(response_bytes)
+            log = f"input {data} {len(data)}\n"
+            log += f"header {header}\n"
+            log += f"output {response_bytes} {len(response_bytes)}"
+            print(log)
+        except Exception as e:
+            print(e)
+            break
 
-        log = f"input {data} {len(data)}\n"
-        log += f"header {header}\n"
-        log += f"output {response_bytes} {len(response_bytes)}"
-        print(log)
+    print("closing socket")
+    client.close()
 
 
 def main():
