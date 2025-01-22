@@ -1,7 +1,7 @@
 import socket  # noqa: F401
 import threading
 
-from app.api_keys.api_key import ErrorCode
+from app.api_keys import ErrorCode, ApiKeys
 from app.api_keys import ApiVersionsRequest
 from app.api_keys.describe_topic_partitions import (
     DescribeTopicCursor,
@@ -36,6 +36,9 @@ def parse_request_header_bytes(data: bytes) -> tuple[HeaderRequest, bytes]:
 
     if is_header_v2:
         tag_buffer, data = digest(data, INT8)
+        tag_buffer = int.from_bytes(tag_buffer)
+    else:
+        tag_buffer = None
 
     return HeaderRequest(
         int.from_bytes(msg_size),
@@ -43,6 +46,7 @@ def parse_request_header_bytes(data: bytes) -> tuple[HeaderRequest, bytes]:
         int.from_bytes(api_version),
         int.from_bytes(correlation_id),
         client_id,
+        tag_buffer,
     ), data
 
 
@@ -114,14 +118,24 @@ def kafka_response(data: bytes) -> bytes:
 
 
 def kafka_build_response(header: HeaderRequest, body_bytes: bytes):
-    res_bytes = kafka_parse(header, body_bytes)
+    res_bytes = kafka_header_response(header) + kafka_body_response(header, body_bytes)
     msg_size = len(res_bytes)
     return msg_size.to_bytes(INT32) + res_bytes
 
 
-def kafka_parse(header: HeaderRequest, body_bytes: bytes) -> bytes:
+def kafka_header_response(header: HeaderRequest) -> bytes:
+    id = header.correlation_id.to_bytes(INT32)
+    if header.api_key != ApiKeys.ApiVersions.value.code:
+        tag_buffer = (0).to_bytes(INT8)
+        return id + tag_buffer
+
+    return id
+
+
+def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
     match header.api_key:
         case api_keys.ApiKeys.ApiVersions.value.code:
+            request = parse_api_version_request(body_bytes)
             return api_keys.api_version_response(header)
         case api_keys.ApiKeys.DescribeTopicPartitions.value.code:
             request = parse_describe_topic_partition_request(body_bytes)
@@ -142,8 +156,9 @@ def accept_client(client: socket.socket):
         except Exception as e:
             print(e)
             break
-
-        print(f"output {response_bytes} {len(response_bytes)}")
+        
+        log = f"input: {data}\noutput: {response_bytes}"
+        print(log)
         client.sendall(response_bytes)
 
     print("closing socket")

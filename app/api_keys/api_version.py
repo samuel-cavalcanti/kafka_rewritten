@@ -14,8 +14,6 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
     )
 
 
-
-
 @dataclass
 class ApiVersionsRequest:
     client_software_name: str
@@ -27,7 +25,6 @@ def api_version_response(header: HeaderRequest):
 
     tag_buffer = (0).to_bytes(INT8)
     throttle_time_ms = (0).to_bytes(INT32)
-    id = header.correlation_id.to_bytes(INT32)
 
     if header.api_version <= 2:
         supported_api_keys = [api_key_to_bytes(key.value) for key in ApiKeys]
@@ -37,23 +34,20 @@ def api_version_response(header: HeaderRequest):
         ]
 
     num_api_keys = len(supported_api_keys) + 1
-    api_keys = num_api_keys.to_bytes(INT8) + sum_bytes(supported_api_keys)
+    api_keys = num_api_keys.to_bytes(INT8, signed=True) + sum_bytes(supported_api_keys)
 
     match header.api_version:
         case 0:
-            return id + ErrorCode.NONE.value.to_bytes(INT16) + api_keys
+            return ErrorCode.NONE.value.to_bytes(INT16) + api_keys
 
         case 1 | 2:
-            return (
-                id + ErrorCode.NONE.value.to_bytes(INT16) + api_keys + throttle_time_ms
-            )
+            return ErrorCode.NONE.value.to_bytes(INT16) + api_keys + throttle_time_ms
         case 3 | 4:
             return (
-                id
-                + ErrorCode.NONE.value.to_bytes(INT16)
+                ErrorCode.NONE.value.to_bytes(INT16)
                 + api_keys
                 + throttle_time_ms
                 + tag_buffer
             )
         case _:
-            return id + ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
+            return ErrorCode.UNSUPPORTED_VERSION.value.to_bytes(INT16)
