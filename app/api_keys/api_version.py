@@ -1,4 +1,5 @@
-from ..utils import INT16, INT32, INT8
+from dataclasses import dataclass
+from ..utils import INT16, INT32, INT8, sum_bytes
 from .api_key import ApiKeys, ApiKey, ErrorCode
 from ..header_request import HeaderRequest
 
@@ -13,12 +14,12 @@ def api_key_to_bytes(api_key: ApiKey) -> bytes:
     )
 
 
-def sum_bytes(data: list[bytes]) -> bytes:
-    acc = data[0]
-    for b in data[1:]:
-        acc = acc + b
 
-    return acc
+
+@dataclass
+class ApiVersionsRequest:
+    client_software_name: str
+    client_software_version: str
 
 
 def api_version_response(header: HeaderRequest):
