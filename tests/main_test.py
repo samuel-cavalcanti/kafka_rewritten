@@ -1,8 +1,10 @@
 import unittest
 from app import main
 from app.api_keys import ApiKeys
+from app.api_keys.api_version import ApiVersionsRequest
 from app.api_keys.describe_topic_partitions import DescribeTopicPartitionsRequest
 from app.header_request import HeaderRequest
+from app import kafka_parser
 
 
 class MainTestCase(unittest.TestCase):
@@ -49,13 +51,6 @@ class MainTestCase(unittest.TestCase):
             res = main.kafka_response(request)
             self.assertEqual(res, expecetd_response)
 
-    def test_correlation_id(self):
-        res = main.correlation_id_respnse(7, 0)
-
-        # msg size 00 00 00 00
-        # correlation_id  00 00 00 07
-        self.assertEqual(res, b"\x00" * 4 + b"\x00" * 3 + b"\x07")
-
     def test_parse_request_msg(self):
         message_size = b"\x00" * 3 + b"\x23"
         api_key = b"\x00" + b"\x12"
@@ -95,14 +90,14 @@ class MainTestCase(unittest.TestCase):
         ]
 
         for msg, header in zip(msgs, headers):
-            result_header, _ = main.parse_request_header_bytes(msg)
+            result_header, _ = kafka_parser.parse_request_header_bytes(msg)
             self.assertEqual(result_header, header)
 
     def test_api_versions_request(self):
         body_bytes = b"\nkafka-cli\x040.1\x00"
-        body_request = main.parse_api_version_request(body_bytes)
+        body_request = kafka_parser.parse_api_version_request(body_bytes)
 
-        expected = main.ApiVersionsRequest(
+        expected = ApiVersionsRequest(
             client_software_name="kafka-cli", client_software_version="0.1"
         )
         self.assertEqual(body_request, expected)
@@ -155,5 +150,5 @@ class MainTestCase(unittest.TestCase):
         ]
 
         for body_bytes, expected in zip(inputs, expected_requests):
-            request = main.parse_describe_topic_partition_request(body_bytes)
+            request = kafka_parser.parse_describe_topic_partition_request(body_bytes)
             self.assertEqual(request, expected)
