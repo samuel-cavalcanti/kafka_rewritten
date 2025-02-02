@@ -20,7 +20,7 @@ class ApiVersionsRequest:
     client_software_version: str
 
 
-def api_version_response(header: HeaderRequest):
+def api_version_response(request: ApiVersionsRequest, header):
     assert header.api_key == ApiKeys.ApiVersions.value.code
 
     tag_buffer = (0).to_bytes(INT8)

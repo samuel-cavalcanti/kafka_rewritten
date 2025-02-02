@@ -1,15 +1,15 @@
+import os
+from pathlib import Path
 import socket  # noqa: F401
 import threading
 import sys
 
 from app.api_keys import ErrorCode, ApiKeys
+from app.api_keys.api_version import ApiVersionsRequest
 from app.header_request import HeaderRequest
 from . import api_keys
 from .utils import INT16, INT32, INT8
 from . import kafka_parser
-
-
-
 
 
 def kafka_response(data: bytes) -> bytes:
@@ -36,17 +36,29 @@ def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
     match header.api_key:
         case api_keys.ApiKeys.ApiVersions.value.code:
             request = kafka_parser.parse_api_version_request(body_bytes)
-            return api_keys.api_version_response(header)
+            # print(request, header)
+            return api_keys.api_version_response(request, header)
         case api_keys.ApiKeys.DescribeTopicPartitions.value.code:
             request = kafka_parser.parse_describe_topic_partition_request(body_bytes)
-            return api_keys.describe_topic_partitions_response(header, request)
+            # print(request, header)
+            return api_keys.describe_topic_partitions_response(request, header)
         case _:
-            return header.api_key.to_bytes(INT32) + ErrorCode.UNKNOWN.value.to_bytes(
-                INT16
-            )
+            error = ErrorCode.UNKNOWN.value.to_bytes(INT16)
+            api_key = header.api_key.to_bytes(INT32)
+            return api_key + error
 
 
-def accept_client(client: socket.socket):
+def load_metada():
+    kafka_logs = Path(
+        "/tmp/kraft-combined-logs/__cluster_metadata-0/00000000000000000000.log"
+    )
+    kafka_log_bytes = kafka_logs.read_bytes()
+    batchs = kafka_parser.parse_kafka_cluster_log(kafka_log_bytes)
+
+    return batchs
+
+
+def accept_client(client: socket.socket, batchs: dict[int, kafka_parser.BatchRecords]):
     while True:
         data = client.recv(1024)
         if len(data) == 0:
@@ -66,15 +78,12 @@ def accept_client(client: socket.socket):
 
 
 def main():
-    # You can use print statements as follows for debugging,
-    # they'll be visible when running tests.
-    print("Logs from your program will appear here!")
-
     server = socket.create_server(("localhost", 9092), reuse_port=True)
+    batchs = load_metada()
 
     while True:
         client_socket, _ = server.accept()  # wait for client
-        thread = threading.Thread(target=accept_client, args=(client_socket,))
+        thread = threading.Thread(target=accept_client, args=(client_socket, batchs))
         thread.start()
 
 

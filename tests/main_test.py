@@ -1,3 +1,4 @@
+from pathlib import Path
 import unittest
 from app import main
 from app.api_keys import ApiKeys
@@ -152,3 +153,9 @@ class MainTestCase(unittest.TestCase):
         for body_bytes, expected in zip(inputs, expected_requests):
             request = kafka_parser.parse_describe_topic_partition_request(body_bytes)
             self.assertEqual(request, expected)
+
+    def test_read_kafka_cluster_log(self):
+        log_file = Path(__file__).parent.parent / Path("kafka.log")
+        kafka_parser.parse_kafka_cluster_log(log_file.read_bytes())
+
+        pass

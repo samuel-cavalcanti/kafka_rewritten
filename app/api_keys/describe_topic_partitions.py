@@ -22,8 +22,7 @@ class DescribeTopicPartitionsRequest:
 
 
 def describe_topic_partitions_response(
-    header: HeaderRequest,
-    request: DescribeTopicPartitionsRequest,
+    request: DescribeTopicPartitionsRequest, header: HeaderRequest
 ) -> bytes:
     tag_buffer = (0).to_bytes(INT8)
     throttle_time_ms = (0).to_bytes(INT32)
