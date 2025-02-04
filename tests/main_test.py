@@ -156,6 +156,10 @@ class MainTestCase(unittest.TestCase):
 
     def test_read_kafka_cluster_log(self):
         log_file = Path(__file__).parent.parent / Path("kafka.log")
-        kafka_parser.parse_kafka_cluster_log(log_file.read_bytes())
+        _batchs = kafka_parser.parse_kafka_cluster_log(log_file.read_bytes())
+        # for batch in batchs.values():
+        #     # print(batch.id)
+        #     for record in batch.records:
+        #         print(record)
 
         pass

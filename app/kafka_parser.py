@@ -229,9 +229,6 @@ class TopicRecord(RecordValue):
     uuid: UUID
 
 
-# RecordValue = FeatureLevelRecordValue | TopicRecord | PartitionRecordValue
-
-
 @dataclass
 class Record:
     timestamp_delta: int
