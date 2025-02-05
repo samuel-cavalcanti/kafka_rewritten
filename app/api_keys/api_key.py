@@ -12,6 +12,7 @@ class ApiKey:
 class ApiKeys(Enum):
     ApiVersions = ApiKey(code=18, min_version=0, max_version=4)
     DescribeTopicPartitions = ApiKey(code=75, min_version=0, max_version=0)
+    Fetch = ApiKey(code=1, min_version=0, max_version=17)
 
 
 class ErrorCode(Enum):
