@@ -67,6 +67,7 @@ class DescribePartitionResponse:
             + replicas_nodes
             + isr_nodes
             + eligible_leader_replicas
+            + last_known_elr
             + offile_replicas
             + tag_buffer
         )
