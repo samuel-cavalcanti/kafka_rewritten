@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from uuid import UUID
 from typing import Callable, Optional
 from app.header_request import HeaderRequest
@@ -198,13 +199,7 @@ def parser_batch_producer(data: bytes) -> tuple[Optional[Producer], bytes]:
 
 
 @dataclass
-class RecordValue:
-    frame_version: int
-    version: int
-
-
-@dataclass
-class PartitionRecordValue(RecordValue):
+class PartitionRecordValue:
     id: int
     topic_uuid: UUID
     replicas: list[int]
@@ -218,21 +213,25 @@ class PartitionRecordValue(RecordValue):
 
 
 @dataclass
-class FeatureLevelRecordValue(RecordValue):
+class FeatureLevelRecordValue:
     name: str
     feature_level: int
 
 
 @dataclass
-class TopicRecord(RecordValue):
+class TopicRecord:
     name: str
     uuid: UUID
+
+
+RecordValue = PartitionRecordValue | FeatureLevelRecordValue | TopicRecord
 
 
 @dataclass
 class Record:
     timestamp_delta: int
     value: RecordValue
+
 
 
 def parse_record(data: bytes) -> Record:
@@ -257,17 +256,19 @@ def parse_record_value(value_bytes: bytes) -> RecordValue:
     frame_version, value_bytes = parse_int(value_bytes, INT8)
     type_record_value, value_bytes = parse_int(value_bytes, INT8)
     version_record_value, value_bytes = parse_int(value_bytes, INT8)
-    rec = RecordValue(frame_version, version_record_value)
+    # rec = RecordValue(frame_version, version_record_value)
 
     match type_record_value:
         case 12:
-            return parse_feature_level_record_value(value_bytes, rec)
+            return parse_feature_level_record_value(value_bytes)
         case 2:
-            return parse_topic_record_value(value_bytes, rec)
+            return parse_topic_record_value(value_bytes)
         case 3:
-            return parse_partition_record_value(value_bytes, rec)
+            return parse_partition_record_value(value_bytes)
         case _:
-            raise NotImplementedError(f"type record {type_record_value}, {rec}")
+            raise NotImplementedError(
+                f"type record {type_record_value}, {frame_version,version_record_value}"
+            )
 
 
 def parse_compact_array[T](
@@ -283,15 +284,7 @@ def parse_compact_array[T](
     return array, data
 
 
-def parse_compact_arrayi32(data: bytes) -> tuple[list[int], bytes]:
-    return parse_compact_array(data, lambda d: parse_int(d, INT32))
-
-
-def parse_compact_arrayuuid(data: bytes) -> tuple[list[UUID], bytes]:
-    return parse_compact_array(data, parse_uuid)
-
-
-def parse_partition_record_value(data: bytes, rec: RecordValue) -> PartitionRecordValue:
+def parse_partition_record_value(data: bytes) -> PartitionRecordValue:
     id, data = parse_int(data, INT32)
     toppic_uuid, data = parse_uuid(data)
 
@@ -307,8 +300,6 @@ def parse_partition_record_value(data: bytes, rec: RecordValue) -> PartitionReco
     assert tagged_fields_count == b"\x00"
 
     return PartitionRecordValue(
-        rec.frame_version,
-        rec.version,
         id,
         toppic_uuid,
         replicas,
@@ -322,9 +313,15 @@ def parse_partition_record_value(data: bytes, rec: RecordValue) -> PartitionReco
     )
 
 
-def parse_feature_level_record_value(
-    data: bytes, rec: RecordValue
-) -> FeatureLevelRecordValue:
+def parse_compact_arrayi32(data: bytes) -> tuple[list[int], bytes]:
+    return parse_compact_array(data, lambda d: parse_int(d, INT32))
+
+
+def parse_compact_arrayuuid(data: bytes) -> tuple[list[UUID], bytes]:
+    return parse_compact_array(data, parse_uuid)
+
+
+def parse_feature_level_record_value(data: bytes) -> FeatureLevelRecordValue:
     name, data = parse_compact_string(data)
     feature_level, data = parse_int(data, INT16)
     taggeed_field_count, data = parse_int(data, INT8)
@@ -333,21 +330,19 @@ def parse_feature_level_record_value(
 
     assert_remain_bytes_is_zero(data)
     return FeatureLevelRecordValue(
-        rec.frame_version,
-        rec.version,
         name,
         feature_level,
     )
 
 
-def parse_topic_record_value(data: bytes, rec: RecordValue) -> TopicRecord:
+def parse_topic_record_value(data: bytes) -> TopicRecord:
     name, data = parse_compact_string(data)
     uuid, data = parse_uuid(data)
     taggeed_field_count, data = digest(data, INT8)
 
     assert_remain_bytes_is_zero(data)
 
-    return TopicRecord(rec.frame_version, rec.version, name, uuid)
+    return TopicRecord(name, uuid)
 
 
 def parse_uuid(data: bytes) -> tuple[UUID, bytes]:

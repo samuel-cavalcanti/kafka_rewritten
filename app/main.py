@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import os
 from pathlib import Path
 import socket  # noqa: F401
@@ -13,6 +14,7 @@ from app.api_keys.api_version import (
     ApiVersionsResponse,
 )
 from app.api_keys.describe_topic_partitions import (
+    DescribePartitionResponse,
     DescribeTopicPartitionResponse,
     DescribeTopicPartitionsRequest,
     DescribeTopicResponse,
@@ -21,6 +23,12 @@ from app.header_request import HeaderRequest
 from . import api_keys
 from .utils import INT16, INT32
 from . import kafka_parser
+
+
+@dataclass
+class Context:
+    topics: dict[str, UUID]
+    topics_partitions: dict[str, list[kafka_parser.PartitionRecordValue]]
 
 
 def load_metada():
@@ -33,27 +41,85 @@ def load_metada():
     kafka_log_bytes = kafka_logs.read_bytes()
     batchs = kafka_parser.parse_kafka_cluster_log(kafka_log_bytes)
 
-    return batchs
+    topics: dict[str, UUID] = {}
+
+    topics_partitions: dict[str, list[kafka_parser.PartitionRecordValue]] = {}
+    feature_levels = {}
+
+    for batch in batchs.values():
+        for record in batch.records:
+            match record.value:
+                case kafka_parser.PartitionRecordValue() as value:
+                    key = str(value.topic_uuid)
+                    if topics_partitions.get(key) is None:
+                        topics_partitions[key] = []
+                    topics_partitions[key].append(value)
+
+                case kafka_parser.TopicRecord() as value:
+                    topics[value.name] = value.uuid
+                case kafka_parser.FeatureLevelRecordValue() as value:
+                    feature_levels[value.name] = value.feature_level
+
+    return Context(topics, topics_partitions)
 
 
-BATCHS = None
+CONTEXT = None
+
+
+def get_context() -> Context:
+    global CONTEXT
+    if CONTEXT is None:
+        CONTEXT = load_metada()
+
+    return CONTEXT
 
 
 def describe_topic_partitions(
     header: HeaderRequest,
     body: DescribeTopicPartitionsRequest,
 ) -> DescribeTopicPartitionResponse:
-    global BATCHS
-    if BATCHS is None:
-        BATCHS = load_metada()
+    context = get_context()
 
-    def to_topic_response(topic: str) -> DescribeTopicResponse:
+    def to_topic_response(topic_name: str) -> DescribeTopicResponse:
+        topic_uuid = context.topics.get(topic_name)
+
+        if topic_uuid is None:
+            return DescribeTopicResponse(
+                error_code=ErrorCode.UNKNOWN_TOPIC_OR_PARTITION,
+                topic=topic_name,
+                topic_id=UUID(bytes=(0).to_bytes(INT32 * 4)),
+                is_internal=False,
+                partitions=[],
+                topic_authorized_operations=0x00000DF8,
+                tag_buffer=0,
+            )
+
+        partitions = context.topics_partitions.get(str(topic_uuid), [])
+
+        def to_partiton_response(
+            p: kafka_parser.PartitionRecordValue,
+        ) -> DescribePartitionResponse:
+            return DescribePartitionResponse(
+                error_code=ErrorCode.NONE,
+                partition_index=p.id,
+                leader_id=p.leader,
+                leader_epoch=p.leader_epoch,
+                replica_nodes=p.replicas,
+                isr_nodes=p.sync_replicas,
+                eligible_leader_replicas=[],
+                last_known_elr=[],
+                offline_replicas=p.removing_replicas,
+                tag_buffer=0,
+            )
+
+        response_partitions = [to_partiton_response(p) for p in partitions]
+
         return DescribeTopicResponse(
-            error_code=ErrorCode.UNKNOWN_TOPIC_OR_PARTITION,
-            topic=topic,
-            topic_id=UUID(bytes=(0).to_bytes(INT32 * 4)),
+            error_code=ErrorCode.NONE,
+            topic=topic_name,
+            topic_id=topic_uuid,
             is_internal=False,
-            partitions=[],
+            partitions=response_partitions,
             topic_authorized_operations=0x00000DF8,
             tag_buffer=0,
         )

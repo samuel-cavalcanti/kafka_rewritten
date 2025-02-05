@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from ..utils import INT16, INT32, INT8, sum_bytes
+from ..utils import INT16, INT32, INT8, encode_compact_array, sum_bytes
 from .api_key import ApiKey, ErrorCode
 
 
@@ -34,12 +34,7 @@ class ApiVersionsResponse:
             def key_to_bytes(key: ApiKeysResponse):
                 return self.api_key_to_bytes(key) + key.tag_buffer.to_bytes(INT8)
 
-        supported_api_keys = [key_to_bytes(k) for k in self.api_keys]
-
-        num_api_keys = len(supported_api_keys) + 1
-        supported_api_keys_bytes = sum_bytes(supported_api_keys)
-
-        api_keys = num_api_keys.to_bytes(INT8, signed=True) + supported_api_keys_bytes
+        api_keys = encode_compact_array(self.api_keys, key_to_bytes)
         match self.version:
             case 0:
                 return self.error_code.value.to_bytes(INT16) + api_keys

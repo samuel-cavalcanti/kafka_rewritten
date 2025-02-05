@@ -1,3 +1,6 @@
+from typing import Callable
+
+
 INT8 = 1
 INT16 = 2
 INT32 = 4
@@ -24,3 +27,29 @@ def sum_bytes(data: list[bytes]) -> bytes:
         acc = acc + b
 
     return acc
+
+
+def encode_compact_nullable_string(string: str) -> bytes:
+    if len(string) == 0:
+        return NULL.to_bytes(INT8)
+    else:
+        return encode_compact_string(string)
+
+
+def encode_int(type_int: int) -> Callable[[int], bytes]:
+    return lambda x: x.to_bytes(type_int)
+
+
+def encode_compact_array[T](array: list[T], encode: Callable[[T], bytes]) -> bytes:
+    size_array = len(array)
+    if size_array == 0:
+        return (1).to_bytes(INT8)
+    array_bytes = [encode(v) for v in array]
+
+    return (size_array + 1).to_bytes(INT8) + sum_bytes(array_bytes)
+
+
+def encode_compact_string(string: str) -> bytes:
+    size_str = len(string) + 1
+    encode_str = string.encode()
+    return size_str.to_bytes(INT8) + encode_str
