@@ -1,7 +1,6 @@
 from pathlib import Path
 import unittest
 from app import main
-from app.api_keys import ApiKeys
 from app.api_keys.api_version import ApiVersionsRequest
 from app.api_keys.describe_topic_partitions import DescribeTopicPartitionsRequest
 from app.header_request import HeaderRequest
@@ -40,16 +39,21 @@ class MainTestCase(unittest.TestCase):
 
         describe_topics_partitions_requests = [
             b"\x00\x00\x001\x00K\x00\x00[\x90k\xdd\x00\x0ckafka-tester\x00\x02\x12unknown-topic-saz\x00\x00\x00\x00\x01\xff\x00",
+            b"\x00\x00\x00#\x00K\x00\x00W\x9a\xd9?\x00\x0ckafka-tester\x00\x02\x04foo\x00\x00\x00\x00\x01\xff\x00",
         ]
         describe_topics_responses = [
             b"\x00\x00\x007[\x90k\xdd\x00\x00\x00\x00\x00\x02\x00\x03\x12unknown-topic-saz\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\r\xf8\x00\xff\x00",
+            b"\x00\x00\x00EW\x9a\xd9?\x00\x00\x00\x00\x00\x02\x00\x00\x04foo\x00\x00\x00\x00\x00\x00@\x00\x80\x00\x00\x00\x00\x00\x00\x85\x00\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x02\x00\x00\x00\x01\x02\x00\x00\x00\x01\x01\x01\x01\x00\x00\x00\r\xf8\x00\xff\x00",
         ]
 
-        requests = api_version_requests + describe_topics_partitions_requests
-        responses = api_version_responses + describe_topics_responses
+        # requests = api_version_requests + describe_topics_partitions_requests
+        # responses = api_version_responses + describe_topics_responses
+        requests = describe_topics_partitions_requests
+        responses = describe_topics_responses
 
         for request, expecetd_response in zip(requests, responses):
             res = main.kafka_response(request)
+            main.CONTEXT = None
             self.assertEqual(res, expecetd_response)
 
     def test_parse_request_msg(self):

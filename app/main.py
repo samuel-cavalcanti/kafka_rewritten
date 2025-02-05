@@ -38,6 +38,7 @@ def load_metada():
     else:
         path = env_path
     kafka_logs = Path(path)
+
     kafka_log_bytes = kafka_logs.read_bytes()
     batchs = kafka_parser.parse_kafka_cluster_log(kafka_log_bytes)
 
@@ -63,15 +64,8 @@ def load_metada():
     return Context(topics, topics_partitions)
 
 
-CONTEXT = None
-
-
 def get_context() -> Context:
-    global CONTEXT
-    if CONTEXT is None:
-        CONTEXT = load_metada()
-
-    return CONTEXT
+    return load_metada()
 
 
 def describe_topic_partitions(
@@ -169,20 +163,6 @@ HANDLES = {
 }
 
 
-def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
-    handler = HANDLES.get(header.api_key)
-    if handler is None:
-        error = ErrorCode.UNKNOWN.value.to_bytes(INT16)
-        api_key = header.api_key.to_bytes(INT32)
-        return api_key + error
-
-    body_parser, callback = handler
-    request = body_parser(body_bytes)
-    response = callback(header, request)
-
-    return response.encode()
-
-
 def accept_client(client: socket.socket):
     while True:
         data = client.recv(1024)
@@ -194,7 +174,7 @@ def accept_client(client: socket.socket):
             print(e, file=sys.stderr)
             break
 
-        log = f"input: {data}\noutput: {response_bytes}"
+        log = f"input: {data}\noutput: {response_bytes}\n"
         print(log)
         client.sendall(response_bytes)
 
@@ -211,6 +191,20 @@ def kafka_build_response(header: HeaderRequest, body_bytes: bytes):
     res_bytes = header.encode() + kafka_body_response(header, body_bytes)
     msg_size = len(res_bytes)
     return msg_size.to_bytes(INT32) + res_bytes
+
+
+def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
+    handler = HANDLES.get(header.api_key)
+    if handler is None:
+        error = ErrorCode.UNKNOWN.value.to_bytes(INT16)
+        api_key = header.api_key.to_bytes(INT32)
+        return api_key + error
+
+    body_parser, callback = handler
+    request = body_parser(body_bytes)
+    response = callback(header, request)
+
+    return response.encode()
 
 
 def main():
