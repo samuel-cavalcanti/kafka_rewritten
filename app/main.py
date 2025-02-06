@@ -16,7 +16,9 @@ def accept_client(client: socket.socket):
         try:
             response_bytes = kafka_response(data)
         except Exception as e:
-            print(e, file=sys.stderr)
+            print("exeception: ", e, file=sys.stderr)
+            response_bytes = b""
+            raise e
             break
 
         log = f"input: {data}\noutput: {response_bytes}\n"

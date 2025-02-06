@@ -13,3 +13,5 @@ from .parse_cluster_log import (
     BatchRecords,
     Producer,
 )
+
+from .parse_fetch_request import parse_fetch_request

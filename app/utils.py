@@ -38,6 +38,14 @@ def encode_int(type_int: int) -> Callable[[int], bytes]:
     return lambda x: x.to_bytes(type_int)
 
 
+def encode_error_code(code: int) -> bytes:
+    return code.to_bytes(INT16)
+
+
+def encode_tag_buffer(tag: int):
+    return tag.to_bytes(INT8)
+
+
 def encode_compact_array[T](array: list[T], encode: Callable[[T], bytes]) -> bytes:
     size_array = len(array)
     if size_array == 0:

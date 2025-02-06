@@ -79,6 +79,16 @@ class MainTestCase(unittest.TestCase):
 
         self.__assertRequests(api_version_requests, api_version_responses)
 
+    def test_tech(self):
+        fetch_reqs = [
+            b"\x00\x00\x000\x00\x01\x00\x10_\xb3I\xc8\x00\x0ckafka-tester\x00\x00\x00\x01\xf4\x00\x00\x00\x01\x03 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x01\x01\x00"
+        ]
+        fetch_res = [
+            b"\x00\x00\x00\x11_\xb3I\xc8\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00"
+        ]
+
+        self.__assertRequests(fetch_reqs, fetch_res)
+
     def __assertRequests(self, requests: list[bytes], expected_responses: list[bytes]):
         for request, expecetd_response in zip(requests, expected_responses):
             res = main.kafka_response(request)

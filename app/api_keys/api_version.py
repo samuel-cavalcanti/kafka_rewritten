@@ -17,7 +17,7 @@ class ApiKeysResponse(ApiKey):
 @dataclass
 class ApiVersionsResponse:
     version: int
-    error_code: ErrorCode
+    error_code: int
     api_keys: list[ApiKeysResponse]
     throttle_time_ms: int
     tag_buffer: int
@@ -35,17 +35,16 @@ class ApiVersionsResponse:
                 return self.api_key_to_bytes(key) + key.tag_buffer.to_bytes(INT8)
 
         api_keys = encode_compact_array(self.api_keys, key_to_bytes)
+        error_code = self.error_code.to_bytes(INT16)
         match self.version:
             case 0:
-                return self.error_code.value.to_bytes(INT16) + api_keys
+                return error_code + api_keys
 
             case 1 | 2:
-                return (
-                    self.error_code.value.to_bytes(INT16) + api_keys + throttle_time_ms
-                )
+                return error_code + api_keys + throttle_time_ms
             case 3 | 4:
                 return (
-                    self.error_code.value.to_bytes(INT16)
+                    error_code
                     + api_keys
                     + throttle_time_ms
                     + self.tag_buffer.to_bytes(INT8)

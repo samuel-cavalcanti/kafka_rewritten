@@ -11,6 +11,10 @@ def parse_int(data: bytes, type_int: int) -> tuple[int, bytes]:
     return int.from_bytes(value), data
 
 
+def parse_tag_buffer(data: bytes) -> tuple[int, bytes]:
+    return parse_int(data, INT8)
+
+
 def digest(data: bytes, size: int) -> tuple[bytes, bytes]:
     return data[:size], data[size:]
 
@@ -52,10 +56,8 @@ def parse_compact_array[T](
     return array, data
 
 
-
 def zigzag_decode(n: int) -> int:
     return (n >> 1) ^ (-(n & 1))
-
 
 
 def parse_varint(data: bytes) -> tuple[int, bytes]:
@@ -72,4 +74,3 @@ def parse_varint(data: bytes) -> tuple[int, bytes]:
         result_string = first_string[1:] + result_string
 
     return int(result_string, 2), data
-

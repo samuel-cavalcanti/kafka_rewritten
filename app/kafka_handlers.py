@@ -14,6 +14,7 @@ from app.api_keys.describe_topic_partitions import (
     DescribeTopicPartitionsRequest,
     DescribeTopicResponse,
 )
+from app.api_keys.fetch import FetchRequest_V17, FetchResponse_V17
 from app.header_request import HeaderRequest
 
 from . import api_keys
@@ -123,7 +124,8 @@ def describe_topic_partitions(
 
     topics = [to_topic_response(t) for t in body.topics]
 
-    return DescribeTopicPartitionResponse( version=header.api_version,
+    return DescribeTopicPartitionResponse(
+        version=header.api_version,
         tag_buffer=0,
         throttle_time_ms=0,
         topics=topics,
@@ -146,9 +148,19 @@ def api_versions(
 
     return ApiVersionsResponse(
         version=header.api_version,
-        error_code=ErrorCode.NONE,
+        error_code=ErrorCode.NONE.value,
         api_keys=keys,
         throttle_time_ms=0,
+        tag_buffer=0,
+    )
+
+
+def fetch(header: HeaderRequest, body: FetchRequest_V17) -> FetchResponse_V17:
+    return FetchResponse_V17(
+        error_code=ErrorCode.NONE.value,
+        throttle_time_ms=0,
+        session_id=0,
+        responses=[],
         tag_buffer=0,
     )
 
@@ -163,4 +175,5 @@ def get_handles():
             kafka_parser.parse_describe_topic_partition_request,
             describe_topic_partitions,
         ),
+        api_keys.ApiKeys.Fetch.value.code: (kafka_parser.parse_fetch_request, fetch),
     }
