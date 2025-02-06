@@ -61,7 +61,7 @@ class MainTestCase(unittest.TestCase):
         ]
 
         for msg, header in zip(msgs, headers):
-            result_header, _ = kafka_parser.parse_request_header_bytes(msg)
+            result_header, _ = kafka_parser.parse_header_request(msg)
             self.assertEqual(result_header, header)
 
     def test_api_versions(self):

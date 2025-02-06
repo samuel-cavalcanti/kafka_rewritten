@@ -2,9 +2,9 @@ import socket  # noqa: F401
 import threading
 import sys
 
-from app.api_keys.api_key import ErrorCode
-from app.header_request import HeaderRequest
-from .utils import INT16, INT32
+from app.header_request import HeaderRequest, UnknownApiKeyResponse
+from app.kafka_response import KafkaResponse
+from .kafka_encode import KafkaEncode
 from . import kafka_handlers, kafka_parser
 
 
@@ -28,29 +28,27 @@ def accept_client(client: socket.socket):
 
 
 def kafka_response(data: bytes) -> bytes:
-    header, body_bytes = kafka_parser.parse_request_header_bytes(data)
+    header, body_bytes = kafka_parser.parse_header_request(data)
+
     return kafka_build_response(header, body_bytes)
 
 
-def kafka_build_response(header: HeaderRequest, body_bytes: bytes):
-    res_bytes = header.encode() + kafka_body_response(header, body_bytes)
-    msg_size = len(res_bytes)
-    return msg_size.to_bytes(INT32) + res_bytes
+def kafka_build_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
+    response_body = kafka_body_response(header, body_bytes)
+    return KafkaResponse(header, response_body).encode()
 
 
-def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> bytes:
+def kafka_body_response(header: HeaderRequest, body_bytes: bytes) -> KafkaEncode:
     handlers = kafka_handlers.get_handles()
     handler = handlers.get(header.api_key)
     if handler is None:
-        error = ErrorCode.UNKNOWN.value.to_bytes(INT16)
-        api_key = header.api_key.to_bytes(INT32)
-        return api_key + error
+        return UnknownApiKeyResponse(header.api_key)
 
     body_parser, callback = handler
     request = body_parser(body_bytes)
     response = callback(header, request)
 
-    return response.encode()
+    return response
 
 
 def main():

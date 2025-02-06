@@ -1,121 +1,59 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from typing import Optional
 from uuid import UUID
-from typing import Callable, Optional
-from app.header_request import HeaderRequest
-from app.api_keys import ApiVersionsRequest
-from .utils import (
-    COMPACT_STRING_LEN,
+from app.kafka_parser.parser_utils import (
+    digest,
+    parse_compact_string,
+    parse_int,
+    assert_remain_bytes_is_zero,
+    parse_compact_array,
+    parse_uuid,
+    zigzag_decode,
+    parse_varint,
+)
+from app.utils import (
     INT16,
     INT32,
     INT64,
     INT8,
-    NULL,
-    NULLABLE_STRING_LEN,
-)
-from app.api_keys import (
-    DescribeTopicCursor,
-    DescribeTopicPartitionsRequest,
 )
 
 
-def parse_int(data: bytes, type_int: int) -> tuple[int, bytes]:
-    value, data = digest(data, type_int)
-    return int.from_bytes(value), data
+@dataclass
+class PartitionRecordValue:
+    id: int
+    topic_uuid: UUID
+    replicas: list[int]
+    sync_replicas: list[int]
+    removing_replicas: list[int]
+    adding_replicas: list[int]
+    leader: int
+    leader_epoch: int
+    partition_epoch: int
+    directories: list[UUID]
 
 
-def parse_request_header_bytes(data: bytes) -> tuple[HeaderRequest, bytes]:
-    msg_size, data = parse_int(data, INT32)
-    api_key, data = parse_int(data, INT16)
-    api_version, data = parse_int(data, INT16)
-    correlation_id, data = parse_int(data, INT32)
-    is_header_v0 = len(data) == 0
-
-    if is_header_v0:
-        client_id = ""
-    else:
-        client_id, data = parse_nullable_string(data)
-
-    is_header_v2 = len(data) != 0
-
-    if is_header_v2:
-        tag_buffer, data = parse_int(data, INT8)
-    else:
-        tag_buffer = None
-
-    return HeaderRequest(
-        msg_size,
-        api_key,
-        api_version,
-        correlation_id,
-        client_id,
-        tag_buffer,
-    ), data
+@dataclass
+class FeatureLevelRecordValue:
+    name: str
+    feature_level: int
 
 
-def digest(data: bytes, size: int) -> tuple[bytes, bytes]:
-    return data[:size], data[size:]
+@dataclass
+class TopicRecord:
+    name: str
+    uuid: UUID
 
 
-def assert_remain_bytes_is_zero(data: bytes):
-    assert len(data) == 0, f"remain bytes: {data}\n"
+RecordValue = PartitionRecordValue | FeatureLevelRecordValue | TopicRecord
 
 
-def parse_nullable_string(data: bytes) -> tuple[str, bytes]:
-    size_str, data = parse_int(data, NULLABLE_STRING_LEN)
-
-    string_bytes, data = digest(data, size_str)
-    return string_bytes.decode(), data
-
-
-def parse_compact_string(data: bytes) -> tuple[str, bytes]:
-    size_str, data = parse_int(data, COMPACT_STRING_LEN)
-
-    string_bytes, data = digest(data, size_str - 1)
-    return string_bytes.decode(), data
-
-
-def parse_api_version_request(data: bytes) -> ApiVersionsRequest:
-    name, data = parse_compact_string(data)
-    version, data = parse_compact_string(data)
-    tag_buffer = digest(data, INT8)
-
-    return ApiVersionsRequest(
-        client_software_name=name,
-        client_software_version=version,
-    )
-
-
-def parse_describe_topic_partition_request(
-    body_bytes: bytes,
-) -> DescribeTopicPartitionsRequest:
-    def compact_string_with_tag(body_bytes: bytes) -> tuple[str, bytes]:
-        name, body_bytes = parse_compact_string(body_bytes)
-        tag_buffer, body_bytes = digest(body_bytes, INT8)
-        return name, body_bytes
-
-    topics, body_bytes = parse_compact_array(body_bytes, compact_string_with_tag)
-
-    reponse_partition_limit, body_bytes = parse_int(body_bytes, INT32)
-
-    if body_bytes[0] == NULL:
-        cursor = None
-    else:
-        topic_name, body_bytes = parse_compact_string(body_bytes)
-        partition_index, body_bytes = parse_int(body_bytes, INT32)
-        tag_buffer, body_bytes = digest(body_bytes, INT8)
-        cursor = DescribeTopicCursor(
-            topic_name=topic_name,
-            partition_index=partition_index,
-        )
-
-    return DescribeTopicPartitionsRequest(
-        topics=topics,
-        reponse_partition_limit=reponse_partition_limit,
-        cursor=cursor,
-    )
+@dataclass
+class Record:
+    timestamp_delta: int
+    value: RecordValue
 
 
 @dataclass
@@ -198,42 +136,6 @@ def parser_batch_producer(data: bytes) -> tuple[Optional[Producer], bytes]:
     return producer, data
 
 
-@dataclass
-class PartitionRecordValue:
-    id: int
-    topic_uuid: UUID
-    replicas: list[int]
-    sync_replicas: list[int]
-    removing_replicas: list[int]
-    adding_replicas: list[int]
-    leader: int
-    leader_epoch: int
-    partition_epoch: int
-    directories: list[UUID]
-
-
-@dataclass
-class FeatureLevelRecordValue:
-    name: str
-    feature_level: int
-
-
-@dataclass
-class TopicRecord:
-    name: str
-    uuid: UUID
-
-
-RecordValue = PartitionRecordValue | FeatureLevelRecordValue | TopicRecord
-
-
-@dataclass
-class Record:
-    timestamp_delta: int
-    value: RecordValue
-
-
-
 def parse_record(data: bytes) -> Record:
     attributes, data = digest(data, INT8)
     timestamp_delta, data = parse_int(data, INT8)
@@ -269,19 +171,6 @@ def parse_record_value(value_bytes: bytes) -> RecordValue:
             raise NotImplementedError(
                 f"type record {type_record_value}, {frame_version,version_record_value}"
             )
-
-
-def parse_compact_array[T](
-    data: bytes, callback: Callable[[bytes], tuple[T, bytes]]
-) -> tuple[list[T], bytes]:
-    length, data = parse_int(data, INT8)
-
-    array = []
-    for _ in range(length - 1):
-        value, data = callback(data)
-        array.append(value)
-
-    return array, data
 
 
 def parse_partition_record_value(data: bytes) -> PartitionRecordValue:
@@ -343,32 +232,6 @@ def parse_topic_record_value(data: bytes) -> TopicRecord:
     assert_remain_bytes_is_zero(data)
 
     return TopicRecord(name, uuid)
-
-
-def parse_uuid(data: bytes) -> tuple[UUID, bytes]:
-    uuid, data = digest(data, INT64 * 2)
-
-    return UUID(bytes=uuid), data
-
-
-def zigzag_decode(n: int) -> int:
-    return (n >> 1) ^ (-(n & 1))
-
-
-def parse_varint(data: bytes) -> tuple[int, bytes]:
-    def parse_byte(data: bytes) -> tuple[str, bytes]:
-        var_int_bytes, data = parse_int(data, INT8)
-        string_bits = bin(var_int_bytes)
-        string_bits = string_bits[2:].zfill(8)
-        return string_bits, data
-
-    first_string, data = parse_byte(data)
-    result_string = first_string[1:]
-    while first_string[0] == "1":
-        first_string, data = parse_byte(data)
-        result_string = first_string[1:] + result_string
-
-    return int(result_string, 2), data
 
 
 def parse_record_key(data: bytes) -> tuple[Optional[str], bytes]:

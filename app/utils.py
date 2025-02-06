@@ -6,8 +6,6 @@ INT16 = 2
 INT32 = 4
 INT64 = 8
 NULL = int.from_bytes(b"\xff")
-COMPACT_STRING_LEN = INT8
-NULLABLE_STRING_LEN = INT16
 
 
 # split(n)

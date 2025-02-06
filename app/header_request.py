@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from app.api_keys.api_key import ApiKeys
-from app.utils import INT32, INT8
+from app.api_keys.api_key import ApiKeys, ErrorCode
+from app.utils import INT16, INT32, INT8
 
 
 @dataclass
@@ -26,3 +26,14 @@ class HeaderRequest:
             tag_buffer = self.tag_buffer.to_bytes(INT8)
 
             return id + tag_buffer
+
+
+@dataclass
+class UnknownApiKeyResponse:
+    api_key: int
+
+    def encode(self) -> bytes:
+        error = ErrorCode.UNKNOWN.value.to_bytes(INT16)
+        key = self.api_key.to_bytes(INT32)
+
+        return key + error
