@@ -92,7 +92,7 @@ class FetchPartitonResponse:
     log_start_offset: int
     aborted_transactions: list[FetchAbortedTransaction]
     preferred_read_replica: int
-    records: list[int]  # COMPACT_RECORDS
+    records: bytes  # COMPACT_RECORDS
     tag_buffer: int
 
     def encode(self) -> bytes:
@@ -105,7 +105,11 @@ class FetchPartitonResponse:
             self.aborted_transactions, lambda a: a.encode()
         )
         preferred_read_replica = self.preferred_read_replica.to_bytes(INT32)
-        records = (1).to_bytes(INT8)
+        size_records = len(self.records).to_bytes(INT8)
+        records_bytes = (1).to_bytes(INT8) if size_records == 0 else self.records
+        records = size_records + records_bytes
+
+
         tag = encode_tag_buffer(self.tag_buffer)
 
         return (
