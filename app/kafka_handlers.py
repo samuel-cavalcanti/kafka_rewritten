@@ -24,6 +24,7 @@ from app.api_keys.fetch import (
     FetchResponses_v17,
 )
 from app.header_request import HeaderRequest
+from app.kafka_parser import PartitionRecordValue
 
 from . import api_keys
 from . import kafka_parser
@@ -164,7 +165,33 @@ def api_versions(
 
 
 def fetch(header: HeaderRequest, body: FetchRequest_V17) -> FetchResponse_V17:
+    context = get_context()
+
+    def to_partition_response(p: PartitionRecordValue) -> FetchPartitonResponse:
+        return FetchPartitonResponse(
+            partition_index=p.id,
+            error_code=ErrorCode.NONE.value,
+            high_watermark=0,
+            last_stable_offset=0,
+            log_start_offset=0,
+            aborted_transactions=[],
+            preferred_read_replica=0,
+            records=[],
+            tag_buffer=0,
+        )
+
     def to_response(topic: FetchRequest_V17Topic) -> FetchResponses_v17:
+        topics = context.topics.values()
+        if topic.topic_id in topics:
+            partitions = context.topics_partitions.get(str(topic.topic_id), [])
+
+            partition_responses = [to_partition_response(p) for p in partitions]
+            return FetchResponses_v17(
+                topic.topic_id,
+                partition_responses,
+                0,
+            )
+
         return FetchResponses_v17(
             topic.topic_id,
             [
