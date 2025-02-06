@@ -14,7 +14,15 @@ from app.api_keys.describe_topic_partitions import (
     DescribeTopicPartitionsRequest,
     DescribeTopicResponse,
 )
-from app.api_keys.fetch import FetchRequest_V17, FetchResponse_V17
+from app.api_keys.fetch import (
+    FetchAbortedTransaction,
+    FetchPartitonResponse,
+    FetchRequest_V17,
+    FetchRequest_V17Partition,
+    FetchRequest_V17Topic,
+    FetchResponse_V17,
+    FetchResponses_v17,
+)
 from app.header_request import HeaderRequest
 
 from . import api_keys
@@ -156,11 +164,31 @@ def api_versions(
 
 
 def fetch(header: HeaderRequest, body: FetchRequest_V17) -> FetchResponse_V17:
+    def to_response(topic: FetchRequest_V17Topic) -> FetchResponses_v17:
+        return FetchResponses_v17(
+            topic.topic_id,
+            [
+                FetchPartitonResponse(
+                    partition_index=0,
+                    error_code=ErrorCode.UNKNOWN_TOPIC_ID.value,
+                    high_watermark=0,
+                    last_stable_offset=0,
+                    log_start_offset=0,
+                    aborted_transactions=[],
+                    preferred_read_replica=0,
+                    records=[],
+                    tag_buffer=0,
+                )
+            ],
+            0,
+        )
+
+    responses = [to_response(t) for t in body.topics]
     return FetchResponse_V17(
         error_code=ErrorCode.NONE.value,
         throttle_time_ms=0,
         session_id=0,
-        responses=[],
+        responses=responses,
         tag_buffer=0,
     )
 

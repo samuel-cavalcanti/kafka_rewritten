@@ -1,9 +1,10 @@
+from typing import Optional
 from uuid import UUID, uuid4
 from app.api_keys.fetch import (
-    FetchForgottenTopics,
+    FetchForgottenTopic,
     FetchRequest_V17,
     FetchRequest_V17Partition,
-    FetchRequest_V17Topics,
+    FetchRequest_V17Topic,
 )
 from app.utils import INT32, INT64, INT8
 from .parser_utils import (
@@ -17,19 +18,6 @@ from .parser_utils import (
 
 
 def parse_fetch_request(data: bytes) -> FetchRequest_V17:
-    return FetchRequest_V17(
-        0,
-        0,
-        0,
-        9,
-        0,
-        0,
-        FetchRequest_V17Topics(UUID("98e96487-a091-4ab2-9a0c-f607bdce025d"), [], 0),
-        FetchForgottenTopics(UUID("98e96487-a091-4ab2-9a0c-f607bdce025d"), [], 0),
-        "",
-        0,
-    )
-
     max_wait_ms, data = parse_int(data, INT32)
     min_bytes, data = parse_int(data, INT32)
     max_bytes, data = parse_int(data, INT32)
@@ -37,8 +25,8 @@ def parse_fetch_request(data: bytes) -> FetchRequest_V17:
     session_id, data = parse_int(data, INT32)
     session_epoch, data = parse_int(data, INT32)
 
-    topics, data = parse_fetch_topics(data)
-    forgotten_topics_data, data = parse_fetch_forgotten_topics(data)
+    topics, data = parse_compact_array(data, parse_fetch_topics)
+    forgotten_topics, data = parse_compact_array(data, parse_fetch_forgotten_topics)
 
     rack_id, data = parse_compact_string(data)
 
@@ -54,7 +42,7 @@ def parse_fetch_request(data: bytes) -> FetchRequest_V17:
         session_id,
         session_epoch,
         topics,
-        forgotten_topics_data,
+        forgotten_topics,
         rack_id,
         tag_buffer,
     )
@@ -67,6 +55,7 @@ def parse_partition(data: bytes) -> tuple[FetchRequest_V17Partition, bytes]:
     last_fetched_epoch, data = parse_int(data, INT32)
     last_start_offset, data = parse_int(data, INT64)
     partition_max_bytes, data = parse_int(data, INT32)
+    tag, data = parse_tag_buffer(data)
     return FetchRequest_V17Partition(
         partition,
         current_leader_epoch,
@@ -74,21 +63,24 @@ def parse_partition(data: bytes) -> tuple[FetchRequest_V17Partition, bytes]:
         last_fetched_epoch,
         last_start_offset,
         partition_max_bytes,
+        tag,
     ), data
 
 
-def parse_fetch_topics(data: bytes) -> tuple[FetchRequest_V17Topics, bytes]:
+def parse_fetch_topics(data: bytes) -> tuple[FetchRequest_V17Topic, bytes]:
     id, data = parse_uuid(data)
     partitions, data = parse_compact_array(data, parse_partition)
     tag, data = parse_tag_buffer(data)
 
-    return FetchRequest_V17Topics(
+    return FetchRequest_V17Topic(
         topic_id=id, partitions=partitions, tag_buffer=tag
     ), data
 
 
-def parse_fetch_forgotten_topics(data: bytes) -> tuple[FetchForgottenTopics, bytes]:
+def parse_fetch_forgotten_topics(
+    data: bytes,
+) -> tuple[FetchForgottenTopic, bytes]:
     forgotten_topic_id, data = parse_uuid(data)
     partitions, data = parse_compact_array(data, lambda d: parse_int(d, INT32))
     tag, data = parse_tag_buffer(data)
-    return FetchForgottenTopics(forgotten_topic_id, partitions, tag), data
+    return FetchForgottenTopic(forgotten_topic_id, partitions, tag), data
