@@ -9,6 +9,7 @@ from app.utils import (
     encode_compact_array,
     encode_error_code,
     encode_tag_buffer,
+    encode_var_int,
 )
 
 
@@ -105,8 +106,10 @@ class FetchPartitonResponse:
             self.aborted_transactions, lambda a: a.encode()
         )
         preferred_read_replica = self.preferred_read_replica.to_bytes(INT32)
-        size_records = len(self.records).to_bytes(INT8)
+        size_records = len(self.records)
+        size_records = encode_var_int(size_records)
         records_bytes = (1).to_bytes(INT8) if size_records == 0 else self.records
+
         records = size_records + records_bytes
 
 

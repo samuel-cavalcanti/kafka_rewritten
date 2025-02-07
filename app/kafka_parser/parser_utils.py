@@ -60,6 +60,11 @@ def zigzag_decode(n: int) -> int:
     return (n >> 1) ^ (-(n & 1))
 
 
+"""
+https://protobuf.dev/programming-guides/encoding/
+"""
+
+
 def parse_varint(data: bytes) -> tuple[int, bytes]:
     def parse_byte(data: bytes) -> tuple[str, bytes]:
         var_int_bytes, data = parse_int(data, INT8)

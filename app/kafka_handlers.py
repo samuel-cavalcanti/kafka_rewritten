@@ -178,78 +178,73 @@ def api_versions(
 
 
 def fetch(header: HeaderRequest, body: FetchRequest_V17) -> FetchResponse_V17:
-    context = get_context()
-
-    def to_response(topic: FetchRequest_V17Topic) -> FetchResponses_v17:
-        recorded_topic = list(
-            filter(lambda item: item[1] == topic.topic_id, context.topics.items())
-        )
-
-        len_recorded_topic = len(recorded_topic)
-
-        if len_recorded_topic == 0:
-            return FetchResponses_v17(
-                topic.topic_id,
-                [
-                    FetchPartitonResponse(
-                        partition_index=0,
-                        error_code=ErrorCode.UNKNOWN_TOPIC_ID.value,
-                        high_watermark=0,
-                        last_stable_offset=0,
-                        log_start_offset=0,
-                        aborted_transactions=[],
-                        preferred_read_replica=0,
-                        records=b"",
-                        tag_buffer=0,
-                    )
-                ],
-                0,
-            )
-
-        assert len_recorded_topic == 1, f"more topics founded {recorded_topic}"
-        topic_name, topic_uuid = recorded_topic[0]
-
-        partitions = context.topics_partitions.get(str(topic_uuid), [])
-
-        def to_partition_response(p: PartitionRecordValue) -> FetchPartitonResponse:
-            records_file = KAFKA_LOG_DIR / Path(f"{topic_name}-{p.id}") / f"{0:020}.log"
-
-            if records_file.exists():
-                records = records_file.read_bytes()
-
-                print(
-                    f"metadata: {KAFKA_METADA_BYTES}\n\nRECORDS: ",
-                    records_file,
-                    records,
-                )
-            else:
-                records = b""
-
-            return FetchPartitonResponse(
-                partition_index=p.id,
-                error_code=ErrorCode.NONE.value,
-                high_watermark=0,
-                last_stable_offset=0,
-                log_start_offset=0,
-                aborted_transactions=[],
-                preferred_read_replica=0,
-                records=records,
-                tag_buffer=0,
-            )
-
-        partition_responses = [to_partition_response(p) for p in partitions]
-        return FetchResponses_v17(
-            topic.topic_id,
-            partition_responses,
-            0,
-        )
-
-    responses = [to_response(t) for t in body.topics]
     return FetchResponse_V17(
         error_code=ErrorCode.NONE.value,
         throttle_time_ms=0,
         session_id=0,
-        responses=responses,
+        responses=[to_response(t) for t in body.topics],
+        tag_buffer=0,
+    )
+
+
+def find_topic_name(topic_id: UUID) -> str | None:
+    context = get_context()
+    recorded_topic = list(
+        filter(lambda item: item[1] == topic_id, context.topics.items())
+    )
+
+    len_recorded_topic = len(recorded_topic)
+    if len_recorded_topic == 0:
+        return None
+
+    assert len_recorded_topic == 1, f"more topics founded {recorded_topic}"
+    topic_name, topic_uuid = recorded_topic[0]
+    return topic_name
+
+
+def to_response(topic: FetchRequest_V17Topic) -> FetchResponses_v17:
+    topic_name = find_topic_name(topic.topic_id)
+    if topic_name is None:
+        return FetchResponses_v17(
+            topic.topic_id,
+            [
+                FetchPartitonResponse(
+                    partition_index=0,
+                    error_code=ErrorCode.UNKNOWN_TOPIC_ID.value,
+                    high_watermark=0,
+                    last_stable_offset=0,
+                    log_start_offset=0,
+                    aborted_transactions=[],
+                    preferred_read_replica=0,
+                    records=bytes(),
+                    tag_buffer=0,
+                )
+            ],
+            0,
+        )
+
+    return FetchResponses_v17(
+        topic.topic_id,
+        [to_partition_response(p.partition, topic_name) for p in topic.partitions],
+        0,
+    )
+
+
+def to_partition_response(
+    partition_index: int, topic_name: str
+) -> FetchPartitonResponse:
+    records_dir = KAFKA_LOG_DIR / Path(f"{topic_name}-{partition_index}")
+    records_file = records_dir / f"{0:020}.log"
+
+    return FetchPartitonResponse(
+        partition_index=partition_index,
+        error_code=ErrorCode.NONE.value,
+        high_watermark=0,
+        last_stable_offset=0,
+        log_start_offset=0,
+        aborted_transactions=[],
+        preferred_read_replica=0,
+        records=records_file.read_bytes(),
         tag_buffer=0,
     )
 

@@ -59,3 +59,15 @@ def encode_compact_string(string: str) -> bytes:
     size_str = len(string) + 1
     encode_str = string.encode()
     return size_str.to_bytes(INT8) + encode_str
+
+
+def encode_var_int(v: int) -> bytes:
+    if v <= 0b1111111:
+        return v.to_bytes(INT8)
+
+    bits = bin(v)[2:]
+
+    first = bits[-7:]
+    second = bits[:-7]
+
+    return int(f"1{first}", 2).to_bytes(INT8) + encode_var_int(int(second, 2))
